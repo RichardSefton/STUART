@@ -2,6 +2,10 @@
 #include <stdint.h>
 #include <avr/io.h>
 
+#ifndef __AVR_ATtiny1627__
+    #include <avr/iotn1627.h>
+#endif
+
 typedef enum 
 {
     FREQ = 50,

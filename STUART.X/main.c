@@ -1,48 +1,49 @@
 #define F_CPU 3333333UL
+#define BAUD_RATE 9600
 
 #include <avr/io.h>
+
+#ifndef __AVR_ATtiny1627__
+    #include <avr/iotn1627.h>
+#endif
+
 #include <avr/interrupt.h>
-#include "Servo_SG90.h"
+#include <util/delay.h>
+#include "lib/components/Servo_SG90.h"
+#include "lib/components/Ultrasonic_HCSR04.h"
+#include "lib/utils/UART.h"
+#include <string.h>
 
 void MainClkCtrl(void);
 void InitPins(void);
 void InitPWM(void);
 void InitRTC();
 void InitTCB();
-//void MoveServo(uint16_t);
 
-volatile Servo* servo = NULL;
-volatile uint8_t waitingForEcho = 0;
-volatile uint16_t endTime = 0;
-volatile float distance = 0;
-volatile float speedOfSound = 344.5e-3;
+Servo* servo = NULL;
+Ultrasonic* ultrasonic = NULL;
 
 int main(void) 
 {
     sei();
     
     servo = Servo_new(F_CPU, 16); //16 as we want the TCA (PWM) Prescaler
+    ultrasonic = Ultrasonic_new(17, 344.5e-3);
     
     MainClkCtrl();
     InitPins();
+    
+    SetBaudRate();
+    EnableTR();
+    
     InitRTC();
     InitTCB();
     InitPWM();
+
     
     while (1) 
     {
-//        MoveServo(312);
-//        _delay_ms(1000);
-        
-//        MoveServo(208);
-//        _delay_ms(1000);
-//        
-//        MoveServo(312);
-//        _delay_ms(1000);
-//        
-//        MoveServo(417);
-//        _delay_ms(1000);
-        
+        Transmit("Hello World\n");
     }
 
     return (0);
@@ -80,6 +81,10 @@ void InitPins(void)
     PORTA.DIR |= PIN2_bp;
     
     PORTA.PIN2CTRL = PORT_ISC_FALLING_gc;
+    
+    //RXTX
+    PORTB.DIR |= PIN2_bm;
+    PORTB.DIR &= ~PIN3_bm;
 }
 
 /**
@@ -146,8 +151,8 @@ void InitRTC(void)
  */
 void InitTCB(void) 
 {
-    TCB0.CCMP = 17;
-    TCB0.CNT = 0xFFFF;
+    TCB0.CCMP = ultrasonic->config.minEchoTime;
+    TCB0.CNT = ultrasonic->config.minEchoTime;
     TCB0.CTRLA |= TCB_CLKSEL_DIV2_gc; 
     TCB0.CTRLB |= TCB_CNTMODE_INT_gc;
     
@@ -173,10 +178,23 @@ void InitTCB(void)
 ISR(TCA0_CMP1_vect)
 {
     TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm;
-    //Turn on the Trigger pin.
-    PORTA.OUT |= PIN1_bm;
-    //Turn on TCB so we can count to 10us
-    TCB0.CTRLA |= TCB_ENABLE_bm;
+    Transmit("ISR::TCA::CMP1::Clearing Flags\n");
+    
+    Transmit("ISR::TCA::CMP1::waitingForEcho: ");
+    TransmitUint8(ultrasonic->waitingForEcho);
+    Transmit("\n");
+    
+    if (!ultrasonic->waitingForEcho && !(TCB0.CTRLA & (1 << TCB_ENABLE_bm)))
+    {    
+        //reset the ultrasonic settings
+        //Ultrasonic_reset(ultrasonic);
+
+        //Turn on the Trigger pin.
+        PORTA.OUT |= PIN1_bm;
+        //Turn on TCB so we can count to 10us
+        TCB0.CTRLA |= TCB_ENABLE_bm; 
+        Transmit("ISR::TCA::CMP1::Started TCB\n");
+    }
 }
 
 /**
@@ -184,18 +202,26 @@ ISR(TCA0_CMP1_vect)
  */
 ISR(TCB0_INT_vect)
 {
+    Transmit("ISR::TCB::In Interrupt\n");
+    
     if(TCB0.INTFLAGS & TCB_CAPT_bm)
     {
+        Transmit("ISR::TCB::Capture Interrupt, Clearing flags\n");
         TCB0.INTFLAGS = TCB_CAPT_bm;    
-        
-        if (!waitingForEcho)
-        {
-            PORTA.OUTCLR |= PIN1_bm;
-            TCB0.CTRLA &= ~(1 << TCB_ENABLE_bp);
-            waitingForEcho = 1;
-            //Init the RTC
-            RTC.CTRLA |= RTC_RTCEN_bm;
-        }
+
+        //Turn off the Trigger pin
+        PORTA.OUTCLR |= PIN1_bm;
+
+        //Disable TCB. Stop the ping
+        TCB0.CTRLA &= ~(1 << TCB_ENABLE_bp);
+
+        //Begin the countdown. 
+        Transmit("ISR::TCB::Begin Ultrasonic Count\n");
+        Ultrasonic_beginCount(ultrasonic);
+
+        //Init the RTC
+        RTC.CTRLA |= RTC_RTCEN_bm;
+        Transmit("ISR::TCB::Beginning RTC and Ultrasonic Sensor\n");
     }
 }
 
@@ -206,39 +232,55 @@ ISR(PORTA_PORT_vect)
 {
     if (PORTA.INTFLAGS & PORT_INT_2_bm)
     {
-        if (waitingForEcho && !(PORTA.IN & (1 << PIN2_bp)))
+        if (ultrasonic->waitingForEcho && !(PORTA.IN & (1 << PIN2_bp)))
         {
             // Pin is low, record the end time and calculate distance
-            endTime = RTC.CNT; // Capture the time elapsed since the trigger was stopped
+            Ultrasonic_updateTime(ultrasonic, RTC.CNT/32.768); // Capture the time elapsed since the trigger was stopped
             //convert the endtime from cycles to ?ms?
-            endTime = endTime/32.768;
-            if (endTime)
+            if (ultrasonic->endTime)
             {
                 // Calculate distance in millimeters (distance = speed * time / 2)
-                distance = ((float)(speedOfSound) * endTime) / 2.0; // Dividing by 20 because speed is scaled by 10 and dividing by 2 for echo
-//                if (distance >= (float)(5.0))
-//                {
-//                    MoveServo(312);
-//                }
-                if (distance < (float)(2.5)) // Distance threshold in millimeters
+                Ultrasonic_calcDistance(ultrasonic);
+             
+                if (ultrasonic->mode == DRIVE)
                 {
-                    // Do something for objects within 20 meters (20000 millimeters)
-                    //Get current pos of servo
-//                    volatile uint16_t cmp0 = TCA0.SINGLE.CMP0;
-//                    MoveServo(servo->DIR.LEFT);
-                    Servo_Move(servo, servo->DIR.LEFT);
+                    if (ultrasonic->distance < (float)(2.5)) // Distance threshold in millimeters
+                    {
+                        Ultrasonic_changeMode(ultrasonic, GATHER);
+                        ultrasonic->waitingForEcho = 0;
+                    }
                 } 
-                
+                else if (ultrasonic->mode == GATHER)
+                {
+                    if (servo->DIR.CURRENT == servo->DIR.MID)
+                    {
+                        Servo_Move(servo, servo->DIR.LEFT);
+                    }
+                    else if (servo->DIR.CURRENT == servo->DIR.LEFT)
+                    {
+                        Ultrasonic_updateLeft(ultrasonic, ultrasonic->distance);
+                        Servo_Move(servo, servo->DIR.RIGHT);
+                    }
+                    else if (servo->DIR.CURRENT == servo->DIR.RIGHT)
+                    {
+                        Ultrasonic_updateRight(ultrasonic, ultrasonic->distance);
+                        Ultrasonic_changeMode(ultrasonic, DECIDE);
+                        Servo_Move(servo, servo->DIR.MID);
+                    }
+                    
+                    ultrasonic->waitingForEcho = 0;
+                }
                 
                 //Disable the RTC
                 RTC.CTRLA &= ~(1 << RTC_RTCEN_bm);
                 RTC.CNT = 0;
-
             }   
             
             // Reset waitingForEcho for the next cycle
-            waitingForEcho = 0;
-
+            if (ultrasonic->mode == DRIVE)
+            {
+                Ultrasonic_reset(ultrasonic);
+            }
         }
         // Clear the interrupt flag
         PORTA.INTFLAGS = PORT_INT_2_bm;
@@ -250,11 +292,19 @@ ISR(PORTA_PORT_vect)
  */
 ISR(RTC_CNT_vect)
 {
+    Transmit("ISR::RTC::Clear Flags\n");
     RTC.INTFLAGS = RTC_INTFLAGS; //Should reset the flags
 //    MoveServo(312);
     Servo_Move(servo, servo->DIR.MID);
-    waitingForEcho = 0; //Reenable the ability to trigger the ultrasonic sensor
+    Transmit("ISR::RTC::Moved Servo to MID\n"); 
+    if (ultrasonic->mode == DRIVE)
+    {
+        Transmit("ISR::RTC::Resetting the ultrasonic. Mode is DRIVE\n");
+        Ultrasonic_reset(ultrasonic); //Reenable the ability to trigger the ultrasonic sensor
+    }
+    
     //Disable the RTC
+    Transmit("ISR::RTC::Disabling the RTC\n");
     RTC.CTRLA &= ~(1 << RTC_RTCEN_bm);
     RTC.CNT = 0;
 }

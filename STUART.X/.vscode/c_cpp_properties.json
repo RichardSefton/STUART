@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "AVR",
+            "includePath": [
+                "/usr/lib/avr/include",
+                "/opt/microchip/mplabx/v6.15/packs/Microchip/ATtiny_DFP/3.0.151/include",
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/avr-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,54 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile",
+            "type": "shell",
+            "command": "avr-gcc",
+            "args": [
+                "-g",
+                "-gdwarf-2",
+                "-mmcu=attiny1627",
+                "-I/opt/microchip/mplabx/v6.15/packs/Microchip/ATtiny_DFP/3.0.151/include",
+                "main.c",
+                "lib/components/Servo_SG90.h",
+                "lib/components/Servo_SG90.c",
+                "lib/utils/UART.h",
+                "lib/utils/UART.c",
+                "lib/components/Ultrasonic_HCSR04.h",
+                "lib/components/Ultrasonic_HCSR04.c",
+                "-Os",
+                "-o", "${workspaceFolder}/build/main.elf"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Create HEX",
+            "type": "shell",
+            "command": "avr-objcopy",
+            "args": [
+                "-O", "ihex",
+                "main.elf",
+                "main.hex"
+            ],
+            "dependsOn": "Compile",
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+        },
+        {
+            "label": "Upload",
+            "type": "shell",
+            "command": "pymcuprog",
+            "args": [
+                "write",
+                "-f", "${workspaceFolder}/build/main.hex",
+                "--erase",
+            ],
+            "group": "none",
+        }        
+    ]
+}

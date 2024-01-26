@@ -1,4 +1,3 @@
-
 #include "Servo_SG90.h"
 
 Servo* Servo_new(unsigned long CLK, uint8_t PRESCALER) 
