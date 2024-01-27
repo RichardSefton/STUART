@@ -64,5 +64,6 @@ static void SendChar(char c);
 static int PrintChar(char c, FILE *stream);
 uint8_t Read(UART*);
 void Transmit(char str[]);
-void TransmitUint8(UART*, uint8_t value);
-void TransmitUint16(UART*, uint16_t value);
+void TransmitUint8(uint8_t);
+void TransmitUint16(uint16_t);
+void TransmitFloat(float);

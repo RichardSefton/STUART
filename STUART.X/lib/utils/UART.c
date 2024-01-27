@@ -118,13 +118,22 @@ void Transmit(char str[])
     }
 }
 
-void TransmitUint8(UART *self, uint8_t value) {
+void TransmitUint8(uint8_t value) {
     char str[4]; // Enough to hold any uint8_t value and null terminator
     sprintf(str, "%u", value); // Convert uint8_t to string
     Transmit(str); // Use the existing Transmit function
 }
-void TransmitUint16(UART *self, uint16_t value) {
+void TransmitUint16(uint16_t value) {
     char str[6]; // Enough to hold any uint16_t value and null terminator
     sprintf(str, "%u", value); // Convert uint16_t to string
     Transmit(str); // Use the existing Transmit function
+}
+void TransmitFloat(float value) {
+    // Convert the float to an integer part and a fractional part
+    int intPart = (int)value;
+    int fracPart = (int)((value - intPart) * 100); // Adjust the multiplier (100) for desired precision
+
+    char str[20]; // Buffer for the complete string
+    sprintf(str, "%d.%02d", intPart, fracPart); // Combine integer and fractional parts
+    Transmit(str);
 }
