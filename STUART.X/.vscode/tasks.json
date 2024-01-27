@@ -49,6 +49,11 @@
                 "--erase",
             ],
             "group": "none",
-        }        
+        },
+        {
+            "label": "Debug",
+            "type": "shell",
+            "command": "python debug/main.py",
+        }       
     ]
 }
