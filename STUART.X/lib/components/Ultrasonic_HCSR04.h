@@ -1,52 +1,134 @@
-#include <stdlib.h>
-#include <stdint.h>
+#include <stdio.h>
+#include <avr/io.h>
 #ifndef __AVR_ATtiny1627__
     #include <avr/iotn1627.h>
 #endif
-
-/*
- * For now, this library won't take temperature into consideration. 
- * 
- * speedOfSound is calculated at 22.5degC
- */
-typedef struct 
-{
-    uint8_t minEchoTime;
-    float speedOfSound;
-} HC_SR04;
-
-typedef enum
-{
-    DRIVE = 0,
-    GATHER = 1,
-    DECIDE = 2
-} enum_Mode;
+#include <stdlib.h>
+#include <stdint.h>
 
 typedef struct
 {
-    float LEFT;
-    float RIGHT;
-} Directions;
+    register16_t* COMPARE;
+    uint16_t COMPARE_VALUE;
+    register16_t* CNT;
+    uint16_t CNT_VALUE;
+    register8_t* CTRLA;
+    uint8_t CLKSEL_gc;
+    register8_t* CTRLB;
+    uint8_t INT_gc;
+    register8_t* INTCTRL;
+    uint8_t INT_bm;
+    uint8_t RUN_MODE_bm;
+} Ultrasonic_TC_Config;
 
-typedef struct 
+typedef struct
 {
-    uint8_t waitingForEcho;
-    uint8_t startTime;
+    register8_t* CLKSEL;
+    uint8_t CLKSEL_gc;
+    register8_t* STATUS;
+    register8_t* CTRLA;
+    uint8_t PERBUSY_bm;
+    register16_t* PER;
+    uint16_t PER_VALUE;
+    register8_t* INTCTRL;
+    uint8_t INT_bm;
+    uint8_t RUN_MODE_bm;
+    uint8_t PRESCALER_gc;
+    register16_t* CNT;
+} Ultrasonic_RTC_Config;
+
+typedef struct
+{
+    //PORTS AND PINS
+    register8_t* TRIGGER;
+    register8_t* ECHO;
+
+    register8_t* TRIG_TGL;
+
+    uint8_t TRIG_PIN_bm;
+    uint8_t ECHO_PIN_bm; 
+
+    //TIMER
+    Ultrasonic_TC_Config* _TC;
+
+    //RTC
+    Ultrasonic_RTC_Config* _RTC;
+
+    //CALIBRATION
+    unsigned long CLK_FREQ;
+} Ultrasonic_Config;
+
+
+typedef struct
+{
+    Ultrasonic_Config* CONFIG;
+    uint16_t startTime;
     uint16_t endTime;
+    float speedOfSound;
+    float time;
+    float tickTime;
     float distance;
-    HC_SR04 config;
-    enum_Mode mode;
-    Directions dir;
+
 } Ultrasonic;
 
-Ultrasonic* Ultrasonic_new(uint8_t, float);
+Ultrasonic_TC_Config* Ultrasonic_TC_Config_new(
+    register16_t *COMPARE,
+    uint16_t COMPARE_VALUE,
+    register16_t *CNT,
+    uint16_t CNT_VALUE,
+    register8_t *CTRLA,
+    uint8_t CLKSEL_gc,
+    register8_t *CTRLB,
+    uint8_t INT_gc,
+    register8_t *INTCTRL,
+    uint8_t INT_bm,
+    uint8_t RUN_MODE_bm
+);
+void Ultrasonic_TC_Config_delete(Ultrasonic_TC_Config*);
+
+Ultrasonic_RTC_Config* Ultrasonic_RTC_Config_new(
+    register8_t* CLKSEL,
+    uint8_t CLKSEL_gc,
+    register8_t* STATUS,
+    register8_t* CTRLA,
+    uint8_t PERBUSY_bm,
+    register16_t* PER,
+    uint16_t PER_VALUE,
+    register8_t* INTCTRL,
+    uint8_t INT_bm,
+    uint8_t RUN_MODE_bm,
+    uint8_t PRESCALER_gc,
+    register16_t* CNT
+);
+void Ultrasonic_RTC_Config_delete(Ultrasonic_RTC_Config*);
+
+Ultrasonic_Config* Ultrasonic_Config_new(
+    register8_t* TRIGGER,
+    register8_t* ECHO,
+    register8_t* TRIG_TGL,
+    uint8_t TRIG_PIN_bm,
+    uint8_t ECHO_PIN_bm,
+    Ultrasonic_TC_Config* _TC,
+    Ultrasonic_RTC_Config* _RTC,
+    unsigned long CLK_FREQ
+);
+void Ultrasonic_Config_delete(Ultrasonic_Config*);
+
+Ultrasonic* Ultrasonic_new(Ultrasonic_Config*);
 void Ultrasonic_delete(Ultrasonic*);
-void Ultrasonic_reset(Ultrasonic*);
-void Ultrasonic_beginCount(Ultrasonic*);
-void Ultrasonic_updateTime(Ultrasonic*, uint16_t);
-float Ultrasonic_calcDistance(Ultrasonic*);
 
-void Ultrasonic_changeMode(Ultrasonic*, enum_Mode);
+void Ultrasonic_InitPins(Ultrasonic* self);
 
-void Ultrasonic_updateLeft(Ultrasonic*, float);
-void Ultrasonic_updateRight(Ultrasonic*, float);
+void Ultrasonic_InitRTC(Ultrasonic* self);
+void Ultrasonic_InitTC(Ultrasonic* self);
+void Ultrasonic_EnableTC(Ultrasonic* self);
+
+void Ultrasonic_ResetTime(Ultrasonic* self);
+void Ultrasonic_SetBeginTime(Ultrasonic* self);
+void Ultrasonic_SetEndTime(Ultrasonic* self);
+
+void Ultrasonic_TriggerOn(Ultrasonic* self);
+void Ultrasonic_TriggerOff(Ultrasonic* self);
+void Ultrasonic_Measure(Ultrasonic* self);
+
+void Ultrasonic_CalculateDistance(Ultrasonic* self);

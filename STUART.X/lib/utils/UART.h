@@ -32,11 +32,11 @@ typedef struct
     register8_t* STATUS;
     register8_t* TXDATA_L;
     register8_t* RXDATA_L;
-} Config;
+} UART_Config;
 
 typedef struct
 {
-    Config* CONFIG;
+    UART_Config* CONFIG;
     unsigned long CLK_FREQ;
     uint16_t BAUD_RATE;
 } UART;
@@ -44,7 +44,7 @@ typedef struct
 #define USART0_BAUD_RATE(BAUD_RATE, CLK_FREQ) ((float)(((float)CLK_FREQ * 64) / (16 * (float)BAUD_RATE)) + 0.5)
 #define USART_LENGTH 8
 
-Config* Config_new(
+UART_Config* UART_Config_new(
     register16_t*,
     register8_t*, uint8_t, 
     register8_t*, uint8_t, 
@@ -53,17 +53,17 @@ Config* Config_new(
     uint8_t, uint8_t,
     register8_t*
 );
-void Config_delete(Config*);
+void UART_Config_delete(UART_Config*);
 
-UART* UART_new(unsigned long, uint16_t, Config*);
+UART* UART_new(unsigned long, uint16_t, UART_Config*);
 void UART_delete(UART*);
 
-void SetBaudRate(UART*);
-void EnableTR(UART*);
-static void SendChar(char c);
-static int PrintChar(char c, FILE *stream);
-uint8_t Read(UART*);
-void Transmit(char str[]);
-void TransmitUint8(uint8_t);
-void TransmitUint16(uint16_t);
-void TransmitFloat(float);
+void UART_SetBaudRate(UART*);
+void UART_EnableTR(UART*);
+static void UART_SendChar(char c);
+static int UART_PrintChar(char c, FILE *stream);
+uint8_t UART_Read(UART*);
+void UART_Transmit(char str[]);
+void UART_TransmitUint8(uint8_t);
+void UART_TransmitUint16(uint16_t);
+void UART_TransmitFloat(float);

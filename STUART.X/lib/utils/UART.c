@@ -1,8 +1,8 @@
 #include "UART.h"
 
-static FILE USART_stream = FDEV_SETUP_STREAM(PrintChar, NULL, _FDEV_SETUP_WRITE);
+static FILE USART_stream = FDEV_SETUP_STREAM(UART_PrintChar, NULL, _FDEV_SETUP_WRITE);
 
-Config* Config_new(
+UART_Config* UART_Config_new(
     register16_t *BAUD,
     register8_t *RX_PORT, uint8_t RX_PIN, 
     register8_t *TX_PORT, uint8_t TX_PIN, 
@@ -12,7 +12,7 @@ Config* Config_new(
     register8_t *RXDATA_L
 )
 {
-    Config *instance = (Config*)malloc(sizeof(Config));
+    UART_Config *instance = (UART_Config*)malloc(sizeof(UART_Config));
 
     if (instance == NULL)
     {
@@ -37,12 +37,12 @@ Config* Config_new(
     return instance;
 }
 
-void Config_delete(Config *self)
+void UART_Config_delete(UART_Config *self)
 {
     free(self);
 }
 
-UART* UART_new(unsigned long CLK_FREQ, uint16_t BAUD, Config *config)
+UART* UART_new(unsigned long CLK_FREQ, uint16_t BAUD, UART_Config *config)
 {
     UART *instance = (UART*)malloc(sizeof(UART));
 
@@ -63,13 +63,13 @@ void UART_delete(UART *self)
     free(self);
 }
 
-void SetBaudRate(UART *self)
+void UART_SetBaudRate(UART *self)
 {
     uint16_t baud_setting = (uint16_t)(USART0_BAUD_RATE(self->BAUD_RATE, self->CLK_FREQ) + 0.5); // Calculate and round
     *(self->CONFIG->BAUD) = baud_setting; // Assign to the BAUD register
 }
 
-void EnableTR(UART *self)
+void UART_EnableTR(UART *self)
 {
     //Enable the RX Interrupt
     *self->CONFIG->CTRLA = self->CONFIG->INT_bm;
@@ -87,13 +87,13 @@ void EnableTR(UART *self)
 }
 
 //Override the printf functionality. 
-static int PrintChar(char c, FILE *stream)
+static int UART_PrintChar(char c, FILE *stream)
 {
-    SendChar(c);
+    UART_SendChar(c);
     return 0;
 }
 
-static void SendChar(char c) 
+static void UART_SendChar(char c) 
 {
     //Check the status and wait for previous transmission to send
     while (!(__STATUS__ & __INTFLAG_bm__));
@@ -102,38 +102,38 @@ static void SendChar(char c)
     __TXDATA_L__ = c;
 }
 
-uint8_t Read(UART *self)
+uint8_t UART_Read(UART *self)
 {
 //    while (!(USART0.STATUS & USART_RXCIF_bm));
 	return *self->CONFIG->RXDATA_L;
 }
 
-void Transmit(char str[])
+void UART_Transmit(char str[])
 {
     // Iterate through each character using a while loop
     int i = 0;
     while (str[i] != '\0') {
-        SendChar(str[i]);  // Print each character
+        UART_SendChar(str[i]);  // Print each character
         i++;
     }
 }
 
-void TransmitUint8(uint8_t value) {
+void UART_TransmitUint8(uint8_t value) {
     char str[4]; // Enough to hold any uint8_t value and null terminator
     sprintf(str, "%u", value); // Convert uint8_t to string
-    Transmit(str); // Use the existing Transmit function
+    UART_Transmit(str); // Use the existing Transmit function
 }
-void TransmitUint16(uint16_t value) {
+void UART_TransmitUint16(uint16_t value) {
     char str[6]; // Enough to hold any uint16_t value and null terminator
     sprintf(str, "%u", value); // Convert uint16_t to string
-    Transmit(str); // Use the existing Transmit function
+    UART_Transmit(str); // Use the existing Transmit function
 }
-void TransmitFloat(float value) {
+void UART_TransmitFloat(float value) {
     // Convert the float to an integer part and a fractional part
     int intPart = (int)value;
     int fracPart = (int)((value - intPart) * 100); // Adjust the multiplier (100) for desired precision
 
     char str[20]; // Buffer for the complete string
     sprintf(str, "%d.%02d", intPart, fracPart); // Combine integer and fractional parts
-    Transmit(str);
+    UART_Transmit(str);
 }

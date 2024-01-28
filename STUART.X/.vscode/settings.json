@@ -3,6 +3,9 @@
         "io.h": "c",
         "iotn1627.h": "c",
         "delay.h": "c",
-        "uart.h": "c"
+        "uart.h": "c",
+        "stdio.h": "c",
+        "string.h": "c",
+        "interrupt.h": "c"
     }
 }
