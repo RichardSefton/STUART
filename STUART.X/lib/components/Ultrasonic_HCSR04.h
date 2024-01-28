@@ -44,6 +44,7 @@ typedef struct
     register8_t* ECHO;
 
     register8_t* TRIG_TGL;
+    register8_t* ECHO_IN;
 
     uint8_t TRIG_PIN_bm;
     uint8_t ECHO_PIN_bm; 
@@ -106,6 +107,7 @@ Ultrasonic_Config* Ultrasonic_Config_new(
     register8_t* TRIGGER,
     register8_t* ECHO,
     register8_t* TRIG_TGL,
+    register8_t* ECHO_IN,
     uint8_t TRIG_PIN_bm,
     uint8_t ECHO_PIN_bm,
     Ultrasonic_TC_Config* _TC,
@@ -114,7 +116,7 @@ Ultrasonic_Config* Ultrasonic_Config_new(
 );
 void Ultrasonic_Config_delete(Ultrasonic_Config*);
 
-Ultrasonic* Ultrasonic_new(Ultrasonic_Config*);
+Ultrasonic* Ultrasonic_new(Ultrasonic_Config*, float tickTime, float speedOfSound);
 void Ultrasonic_delete(Ultrasonic*);
 
 void Ultrasonic_InitPins(Ultrasonic* self);
@@ -122,6 +124,7 @@ void Ultrasonic_InitPins(Ultrasonic* self);
 void Ultrasonic_InitRTC(Ultrasonic* self);
 void Ultrasonic_InitTC(Ultrasonic* self);
 void Ultrasonic_EnableTC(Ultrasonic* self);
+void Ultrasonic_DisableTC(Ultrasonic* self);
 
 void Ultrasonic_ResetTime(Ultrasonic* self);
 void Ultrasonic_SetBeginTime(Ultrasonic* self);

@@ -84,6 +84,7 @@ Ultrasonic_Config* Ultrasonic_Config_new(
     register8_t *TRIGGER,
     register8_t *ECHO,
     register8_t *TRIG_TGL,
+    register8_t *ECHO_IN,
     uint8_t TRIG_PIN_bm,
     uint8_t ECHO_PIN_bm,
     Ultrasonic_TC_Config *_TC,
@@ -100,6 +101,7 @@ Ultrasonic_Config* Ultrasonic_Config_new(
     instance->TRIGGER = TRIGGER;
     instance->ECHO = ECHO;
     instance->TRIG_TGL = TRIG_TGL;
+    instance->ECHO_IN = ECHO_IN;
     instance->TRIG_PIN_bm = TRIG_PIN_bm;
     instance->ECHO_PIN_bm = ECHO_PIN_bm;
     instance->_TC = _TC;
@@ -113,7 +115,7 @@ void Ultrasonic_Config_delete(Ultrasonic_Config *self)
     free(self);
 }
 
-Ultrasonic* Ultrasonic_new(Ultrasonic_Config *config)
+Ultrasonic* Ultrasonic_new(Ultrasonic_Config *config, float tickTime, float speedOfSound)
 {
     Ultrasonic *instance = (Ultrasonic*)malloc(sizeof(Ultrasonic));
     if (instance == NULL)
@@ -124,7 +126,8 @@ Ultrasonic* Ultrasonic_new(Ultrasonic_Config *config)
     instance->startTime = 0;
     instance->endTime = 0;
     instance->distance = 255; //Init to max value. 0xFF is also valid. 
-    
+    instance->speedOfSound = speedOfSound;
+    instance->tickTime = tickTime;
     instance->CONFIG= config;
     
     return instance;
@@ -181,6 +184,11 @@ void Ultrasonic_EnableTC(Ultrasonic *self)
     //Enable the timer
     *self->CONFIG->_TC->CTRLA |= self->CONFIG->_TC->RUN_MODE_bm;
 }
+void Ultrasonic_DisableTC(Ultrasonic *self)
+{
+    //Disable the timer
+    *self->CONFIG->_TC->CTRLA &= ~self->CONFIG->_TC->RUN_MODE_bm;
+}
 
 void Ultrasonic_ResetTime(Ultrasonic *self)
 {
@@ -212,11 +220,11 @@ void Ultrasonic_TriggerOff(Ultrasonic *self)
 void Ultrasonic_Measure(Ultrasonic *self)
 {
     //Wait for echo pin to go high
-    while(!(*self->CONFIG->ECHO & self->CONFIG->ECHO_PIN_bm));
+    while(!(*self->CONFIG->ECHO_IN & self->CONFIG->ECHO_PIN_bm));
     //Set the start time
     Ultrasonic_SetBeginTime(self);
     //Wait for echo pin to go low
-    while(*self->CONFIG->ECHO & self->CONFIG->ECHO_PIN_bm);
+    while(*self->CONFIG->ECHO_IN & self->CONFIG->ECHO_PIN_bm);
     //Set the end time
     Ultrasonic_SetEndTime(self);
 }
