@@ -31,16 +31,58 @@ typedef struct
     uint16_t CURRENT;
 } Direction;
 
+typedef struct
+{
+    register8_t* TCAROUTE;
+    register8_t* CTRLA;
+    register8_t* CTRLB;
+    uint8_t PORTMUX_gc;
+    uint8_t WGMODE_gc;
+    uint8_t CPMEN_bm;
+    uint8_t CLKDIV_gc;
+    uint8_t RUNMODE_bm;
+    register16_t* PER;
+    register16_t* CMP0BUFF;
+} ServoPWM_Config;
+
 typedef struct 
 {
     SG90 MODEL;
     unsigned long CLK_SPEED;
     uint8_t PRESCALER;
     Direction DIR;
+    ServoPWM_Config* PWM_CONFIG;
+    register8_t* PORT;
+    uint8_t PIN_bm;
 } Servo;
 
-Servo* Servo_new(unsigned long, uint8_t);
+ServoPWM_Config* Servo_PWM_new(
+    register8_t *TCAROUTE,
+    register8_t *CTRLA,
+    register8_t *CTRLB,
+    uint8_t PORTMUX_gc,
+    uint8_t WGMODE_gc,
+    uint8_t CPMEN_bm,
+    uint8_t CLKDIV_gc,
+    uint8_t RUNMODE_bm,
+    register16_t *PER,
+    register16_t *CMP0BUFF
+);
+void Servo_PWM_delete(ServoPWM_Config*);
+
+Servo* Servo_new(
+    unsigned long, 
+    uint8_t, 
+    ServoPWM_Config*,
+    register8_t* PORT,
+    uint8_t PIN_bm
+);
 void Servo_delete(Servo*);
+
 void Servo_CalculatePeriod(Servo*);
 void Servo_CalculateDirections(Servo*);
+
+void Servo_InitPins(Servo*);
+void Servo_InitPWM(Servo*);
+
 void Servo_Move(Servo*, uint16_t);
