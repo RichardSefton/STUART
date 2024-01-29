@@ -23,9 +23,19 @@ Ultrasonic *ultrasonic = NULL;
 ServoPWM_Config *servo_pwmConfig = NULL;
 Servo *servo = NULL;
 
+typedef enum
+{
+    MOVE,
+    LOOK,
+    DECIDE,
+} Mode;
+
+Mode mode = MOVE;
+
 void InitClasses(void);
 
 volatile uint8_t tcbIntInProgress = 0;
+volatile uint8_t count = 0;
 
 int main()
 {
@@ -76,9 +86,9 @@ void InitClasses(void)
     //Setting CNT_VALUE to max. 
     ultrasonic_tcConfig = Ultrasonic_TC_Config_new(
         &TCB0.CCMP,
-        17,
+        0xFFFF,
         &TCB0.CNT,
-        17,
+        0xFFFF,
         &TCB0.CTRLA,
         TCB_CLKSEL_DIV2_gc,
         &TCB0.CTRLB,
@@ -159,15 +169,28 @@ ISR(TCB0_INT_vect)
         UART_TransmitFloat(ultrasonic->distance);
         UART_Transmit("cm\n");
 
-        if (ultrasonic->distance < 5.0)
+        if (mode == MOVE)
         {
-            Servo_Move(servo, servo->DIR.LEFT);
+            if (ultrasonic->distance < 5.0)
+            {
+                mode = LOOK;
+            }
+        }
+        if (mode == LOOK)
+        {
+            if (servo->DIR.CURRENT == servo->DIR.LEFT)
+            {
+                ultrasonic->DISTANCES.LEFT = ultrasonic->distance;
+            }
+            else if (servo->DIR.CURRENT == servo->DIR.RIGHT)
+            {
+                ultrasonic->DISTANCES.RIGHT = ultrasonic->distance;
+            }
         }
 
         tcbIntInProgress = 0;
+        UART_Transmit("\n");
     }
-
-    UART_Transmit("\n");
 }
 
 ISR(RTC_CNT_vect)
@@ -178,13 +201,63 @@ ISR(RTC_CNT_vect)
     //Toggle the LED
     PORTB.OUTTGL |= PIN7_bm;
 
-    Servo_Move(servo, servo->DIR.MID);
 
     //Enable TCB
-    if (!tcbIntInProgress)
+    if (!tcbIntInProgress && mode == MOVE)
     {
+        UART_Transmit("ISR::RTC::Move\n");
+        Servo_Move(servo, servo->DIR.MID);
         Ultrasonic_ResetTime(ultrasonic);
         Ultrasonic_TriggerOn(ultrasonic);
         Ultrasonic_EnableTC(ultrasonic);
+    }
+
+    if (!tcbIntInProgress && mode == LOOK)
+    {
+        UART_Transmit("ISR::RTC::Look\n");
+        if (servo->DIR.CURRENT == servo->DIR.RIGHT)
+        {
+            mode = DECIDE;
+        } 
+        else
+        {
+            if (servo->DIR.CURRENT == servo->DIR.MID)
+            {
+                Servo_Move(servo, servo->DIR.LEFT);
+                //I Know its blocking, but we need to give the servo time to move
+                _delay_ms(500);
+            }
+            else if (servo->DIR.CURRENT == servo->DIR.LEFT)
+            {
+                Servo_Move(servo, servo->DIR.RIGHT);
+                _delay_ms(500);
+            }
+            Ultrasonic_ResetTime(ultrasonic);
+            Ultrasonic_TriggerOn(ultrasonic);
+            Ultrasonic_EnableTC(ultrasonic);
+        }
+    }
+
+    if (mode == DECIDE)
+    {
+        if (ultrasonic->DISTANCES.LEFT > ultrasonic->DISTANCES.RIGHT)
+        {
+            Servo_Move(servo, servo->DIR.LEFT);
+        }
+        else
+        {
+            Servo_Move(servo, servo->DIR.RIGHT);
+        }
+        
+        if (count <= 5)
+        {
+            count++;
+        }
+        else
+        {
+            count = 0;
+            mode = MOVE;
+        }
+        UART_Transmit("\n");
     }
 }

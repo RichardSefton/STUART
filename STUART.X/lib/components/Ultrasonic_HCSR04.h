@@ -59,6 +59,12 @@ typedef struct
     unsigned long CLK_FREQ;
 } Ultrasonic_Config;
 
+typedef struct 
+{
+    float LEFT;
+    float MID;
+    float RIGHT;
+} Distances;
 
 typedef struct
 {
@@ -69,7 +75,7 @@ typedef struct
     float time;
     float tickTime;
     float distance;
-
+    Distances DISTANCES;
 } Ultrasonic;
 
 Ultrasonic_TC_Config* Ultrasonic_TC_Config_new(

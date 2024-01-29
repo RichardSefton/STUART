@@ -123,6 +123,8 @@ void Servo_InitPins(Servo *self)
     *self->PORT |= self->PIN_bm;
 }
 
+
+
 /**
  * This needs a better method. Currently its tied to a specific MCU set. 
  * @param self
